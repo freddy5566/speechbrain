@@ -21,8 +21,8 @@ class SpeechToTextDataset(sb.dataio.dataset.DynamicItemDataset):
     def __getitem__(self, index):
         item = self.data[index]
         speech_file = item["speech"]
-        qs = item["conversations"][0]["value"]
-        answer = item["conversations"][1]["value"]
+        qs = item["conversations"][0]["user"]
+        answer = item["conversations"][1]["assistent"]
 
         speech = sb.dataio.dataio.load_audio(speech_file)
         input_ids = tokenizer_speech_token(qs, self.tokenizer, return_tensors="pt")

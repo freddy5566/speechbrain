@@ -1,13 +1,10 @@
-import json
-import random
-import logging
-
-import torchaudio
 import pandas as pd
+import json
+import torchaudio
 import pathlib as pl
-
+import logging
 from tqdm import tqdm
-
+import random
 from speechbrain.utils.logger import get_logger
 from speechbrain.dataio.dataio import load_pkl, save_pkl
 
@@ -60,7 +57,6 @@ def prepare_covost2(
     tgt_dev = pl.Path(tgt_translation_folder) / f"{TGT_Trans_METADATA}.dev.tsv"
     tgt_test = pl.Path(tgt_translation_folder) / f"{TGT_Trans_METADATA}.test.tsv"
 
-    save_opt = pl.Path(save_folder) / OPT_FILE
     save_json_train = pl.Path(save_folder) / "train.json"
     save_json_dev = pl.Path(save_folder) / "dev.json"
     save_json_test = pl.Path(save_folder) / "test.json"
@@ -69,28 +65,13 @@ def prepare_covost2(
     logger.info(msg)
 
     if "train" in splits:
-      prepare_json(
-          save_json_train,
-          src_audio,
-          tgt_train,
-      )
-
+        prepare_json(save_json_train, src_audio, tgt_train)
     if "dev" in splits:
-      prepare_json(
-          save_json_dev,
-          src_audio,
-          tgt_dev,
-      )
-
+        prepare_json(save_json_dev, src_audio, tgt_dev)
     if "test" in splits:
-      prepare_json(
-          save_json_test,
-          src_audio,
-          tgt_test,
-      )
+        prepare_json(save_json_test, src_audio, tgt_test)
 
-    save_pkl(config, save_opt)
-
+    save_pkl(config, save_folder / OPT_FILE)
 
 def prepare_json(json_file, src_audio_folder, tgt_translation_path):
     src_audio_folder = pl.Path(src_audio_folder)
@@ -99,7 +80,7 @@ def prepare_json(json_file, src_audio_folder, tgt_translation_path):
 
     tgt_translation_df = pd.read_csv(tgt_translation_path, sep="\t")
 
-    json_dict = {}
+    json_list = []
 
     logger.info(f"Processing {len(tgt_translation_df)} audio files for {json_file}...")
 
@@ -111,21 +92,19 @@ def prepare_json(json_file, src_audio_folder, tgt_translation_path):
         if not src_audio_path.is_file():
             continue
 
-        src_sig, sr = torchaudio.load(str(src_audio_path))
-        duration = src_sig.shape[1] / sr
+        json_list.append({
+            "speech": str(src_audio_path),
+            "conversations": [
+                {"user": "Please translate the given speech into English text."},
+                {"assistent": tgt_text}
+            ]
+        })
 
-        json_dict[audio_filename] = {
-            "src_audio": str(src_audio_path),
-            "tgt_text": tgt_text,
-            "duration": duration,
-        }
-
-    json_file.write_text(json.dumps(json_dict, indent=2, ensure_ascii=False), encoding="utf-8")
+    json_file.write_text(json.dumps(json_list, indent=2, ensure_ascii=False), encoding="utf-8")
 
     logger.info(f"{json_file} successfully created!")
 
 def skip(splits, save_folder, conf):
-
     save_folder = pl.Path(save_folder)
     split_files = {
         "train": "train.json",
@@ -150,12 +129,14 @@ def skip(splits, save_folder, conf):
             return False
     return skip
 
-
 if __name__ == "__main__":
     prepare_covost2(
-        save_folder = "/content/drive/MyDrive/Colab Notebooks/Model-Merging/covost2_audio/covost2_prepared",
-        src_audio_folder = "/content/drive/MyDrive/Colab Notebooks/Model-Merging/covost2_audio/cv-corpus-20.0-de/cv-corpus-20.0-2024-12-06/de",
-        tgt_translation_folder = "/content/drive/MyDrive/Colab Notebooks/Model-Merging/covost_translation_extracted",
+        save_folder="/content/drive/MyDrive/Colab Notebooks/Model-Merging/covost2_audio/covost2_prepared",
+        src_audio_folder="/content/temp_audio/cv-corpus-20.0-2024-12-06/de",
+        tgt_translation_folder="/content/drive/MyDrive/Colab Notebooks/Model-Merging/covost_translation_extracted",
         splits=["train", "dev", "test"],
-        src_lang="de", tgt_lang="en", seed=1234, skip_prep=False,
+        src_lang="de",
+        tgt_lang="en",
+        seed=1234,
+        skip_prep=False
     )
