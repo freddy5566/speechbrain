@@ -92,8 +92,16 @@ def prepare_json(json_file, src_audio_folder, tgt_translation_path):
         if not src_audio_path.is_file():
             continue
 
+        try:
+            info = torchaudio.info(str(src_audio_path))
+            duration = info.num_frames / info.sample_rate
+        except Exception as e:
+            logger.error(f"Error getting duration for {src_audio_path}: {e}")
+            continue
+
         json_list.append({
             "speech": str(src_audio_path),
+            "duration": duration,
             "conversations": [
                 {"user": "Please translate the given speech into English text."},
                 {"assistent": tgt_text}
@@ -131,12 +139,13 @@ def skip(splits, save_folder, conf):
 
 if __name__ == "__main__":
     prepare_covost2(
-        save_folder="/content/drive/MyDrive/Colab Notebooks/Model-Merging/covost2_audio/covost2_prepared",
-        src_audio_folder="/content/temp_audio/cv-corpus-20.0-2024-12-06/de",
-        tgt_translation_folder="/content/drive/MyDrive/Colab Notebooks/Model-Merging/covost_translation_extracted",
+        save_folder="/gscratch/scrubbed/andysu/covost2_processed/clips",
+        src_audio_folder="/gscratch/scrubbed/andysu/covost2_de",
+        tgt_translation_folder="/gscratch/scrubbed/andysu/covost2_de/de-en_translation",
         splits=["train", "dev", "test"],
         src_lang="de",
         tgt_lang="en",
         seed=1234,
         skip_prep=False
     )
+
