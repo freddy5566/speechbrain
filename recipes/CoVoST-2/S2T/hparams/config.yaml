@@ -1,0 +1,82 @@
+seed: 3407
+__set_seed: !apply:speechbrain.utils.seed_everything [!ref <seed>]
+data_folder: !PLACEHOLDER  
+output_folder: !ref <data_folder>/results
+save_folder: !ref <output_folder>/save
+train_log: !ref <output_folder>/train_log.txt
+
+# stages related parameters
+stage_one_epochs: 100
+lr_adam: 1e-4  
+lr_sgd: 0.000025  
+
+epoch_counter: !new:speechbrain.utils.epoch_loop.EpochCounter
+    limit: !ref <num_epochs>
+
+# Trainer settings
+num_epochs: 50   
+batch_size: 8
+valid_search_epoch: 10 
+grad_accumulation_factor: 6
+loss_reduction: batchmean
+sorting: random
+avg_checkpoints: 5  
+
+# load tokenizer and model tensor
+model_path: "Llama-3.1-8B-Omni"
+
+# loss settings
+ctc_loss_weight: 0.3
+loss_ctc: !name:torch.nn.CTCLoss
+    blank: 0
+    reduction: "mean"
+
+loss_ce: !name:torch.nn.CrossEntropyLoss
+    label_smoothing: 0.2   
+
+compute_loss: !new:speechbrain.utils.losses.compute_loss
+    loss_fn:
+        - !ref <loss_ce>
+        - !ref <loss_ctc>
+    loss_weights: [1.0, !ref <ctc_loss_weight>]
+
+# two optimizers 
+optimizer_adam: !name:torch.optim.AdamW
+    lr: !ref <lr_adam>
+    betas: (0.9, 0.98)
+    eps: 1e-8
+
+optimizer_sgd: !name:torch.optim.SGD
+    lr: !ref <lr_sgd>
+    momentum: 0.99
+    nesterov: True
+    
+scheduler: !new:speechbrain.nnet.schedulers.NoamScheduler
+    lr_initial: !ref <lr_adam>
+    n_warmup_steps: 5000
+
+# DataLoader setting
+train_dataloader_opts:
+    batch_size: !ref <batch_size>
+    num_workers: 4
+valid_dataloader_opts:
+    batch_size: !ref <batch_size>
+    num_workers: 4
+test_dataloader_opts:
+    batch_size: !ref <batch_size>
+    num_workers: 4
+
+
+
+# Checkpoint setting
+checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <save_folder>
+    recoverables:
+        model: !ref <model_path>
+        optimizer: !ref <optimizer>
+        scheduler: !ref <scheduler>
+        counter: !ref <epoch_counter>
+
+# The train logger writes training statistics to a file, as well as stdout.
+train_logger: !new:speechbrain.utils.train_logger.FileTrainLogger
+    save_file: !ref <train_log>
